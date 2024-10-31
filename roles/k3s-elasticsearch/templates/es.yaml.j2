@@ -1,0 +1,21 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: {{ elasticsearch_cluster_name }}
+spec:
+  version: {{ elasticsearch_version }}
+  nodeSets:
+  - name: default
+    count: 1
+    config:
+      node.store.allow_mmap: false
+---
+# apiVersion: kibana.k8s.elastic.co/v1
+# kind: Kibana
+# metadata:
+#   name: {{ elasticsearch_cluster_name }}
+# spec:
+#   version: {{ elasticsearch_version }}
+#   count: 1
+#   elasticsearchRef:
+#     name: {{ elasticsearch_cluster_name }}

@@ -1,0 +1,96 @@
+---
+
+- block: 
+  - name: K3s Elastic | Get ES CRDs presence
+    ansible.builtin.shell: |
+      kubectl get crd|grep elasticsearch
+    register: es_crds_result
+    failed_when: false
+    changed_when: false
+ 
+  - name: K3s Elastic | Check ES operator presence
+    ansible.builtin.shell: |
+      #kubectl get configmaps -A|grep "elastic-operator "
+      kubectl get pods -n elastic-system|grep elastic-operator
+    register: es_operator_result
+    failed_when: false
+    changed_when: false
+
+  - name: K3s Elastic | Install ES CRDs
+    ansible.builtin.shell: |
+      kubectl create -f https://download.elastic.co/downloads/eck/{{ crd_version }}/crds.yaml 
+    when: es_crds_result.rc == 1 
+
+  - name: K3s Elastic | Install ES Operators
+    ansible.builtin.shell: |
+      kubectl create -f https://download.elastic.co/downloads/eck/{{ crd_version }}/operator.yaml 
+    when: es_operator_result.rc == 1 
+
+  - name: K3s Elastic |Wait for operator to run
+    ansible.builtin.shell: |
+      kubectl get pods -n elastic-system|grep elastic-operator|grep Running
+    register: es_operator_pod_result
+    until: es_operator_pod_result.rc == 0
+    retries: 20
+    delay: 5    
+
+  - name: K3s Elastic | Get templates
+    ansible.builtin.template:
+      src: "{{ item }}.yaml.j2"
+      dest: "/home/{{ansible_user}}/{{ item }}.yaml"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0644'
+    loop:
+      - es
+      - es-ingress
+    loop_control:
+      label: "Template {{item}}.yaml"
+    register: es_templates
+ 
+  - name: K3s Elastic | Apply templates
+    ansible.builtin.shell: |
+      kubectl apply -f /home/{{ ansible_user }}/{{ item }}.yaml 
+    when: es_templates.changed
+    loop:
+      - es
+      - es-ingress
+    loop_control:
+      label: "Apply template {{item}}.yaml"
+ 
+  - name: K3s Elastic | Get secret 
+    ansible.builtin.shell: |
+      kubectl get secret {{ elasticsearch_cluster_name }}-es-elastic-user -o go-template='{% raw %}{{.data.elastic | base64decode}}{% endraw %}'
+    register: es_secret
+    until: es_secret.rc == 0
+    retries: 10 
+    delay: 5
+    tags: es_url
+
+  - name: K3s Elastic | Set secret and URL facts
+    ansible.builtin.set_fact:
+      elasticsearch_elastic_password: "{{ es_secret.stdout }}"
+      elasticsearch_url: "https://elastic:{{ es_secret.stdout }}@{{ ansible_host }}:9200"
+    when: es_secret.rc == 0
+    tags: es_url
+
+  become: no
+  environment:
+    KUBECONFIG: /home/{{ ansible_user }}/.kube/config
+  
+- name: K3s Elastic | Wait for Elasticsearch to be reachable from external world (can last few minutes)
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}:9200/"
+    user: elastic
+    password: "{{ elasticsearch_elastic_password }}"
+    method: GET
+    force_basic_auth: true
+    validate_certs: false
+  register: es_availability_result
+  until: es_availability_result.status == 200
+  retries: 30 
+  delay: 10 
+
+- ansible.builtin.debug:
+    msg: "curl -k {{ elasticsearch_url }}"
+  tags: es_url

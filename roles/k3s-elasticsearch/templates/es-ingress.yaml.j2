@@ -1,0 +1,50 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    ports:
+      elastic:
+        port: 9200
+        expose: true
+        #expose:
+          #default: true
+        exposedPort: 9200
+        protocol: TCP
+      # kibana:
+      #   port: 5601
+      #   expose: true
+      #   #expose:
+      #     #default: true
+      #   exposedPort: 5601
+      #   protocol: TCP
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: "{{ elasticsearch_cluster_name }}-es-ingress"
+  namespace: default
+spec:
+  entryPoints:
+    - elastic
+  routes:
+    - match: HostSNI(`*`)
+      services:
+        - name: "{{ elasticsearch_cluster_name }}-es-http"
+          port: 9200
+---
+# apiVersion: traefik.containo.us/v1alpha1
+# kind: IngressRouteTCP
+# metadata:
+#   name: "{{ elasticsearch_cluster_name }}-kb-ingress"
+#   namespace: default
+# spec:
+#   entryPoints:
+#     - kibana
+#   routes:
+#     - match: HostSNI(`*`)
+#       services:
+#         - name: "{{ elasticsearch_cluster_name }}-kb-http"
+#           port: 9200

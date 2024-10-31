@@ -1,0 +1,38 @@
+
+- Testovano na hostiteli Ubuntu 22.04 s 4096 RAM
+
+- do adresare external dat externi ansible repo
+
+cd external; git clone https://github.com/k3s-io/k3s-ansible.git; cd ..
+
+- v inventory nastavit ip (hosta) serveru + ansible usera , pripadne prenastavit pozadovane v group_vars/all.yml
+
+- zavolat playbook
+
+ansible-playbook -i inventory/hosts.ini playbook/k3s-elasticsearch.yml --ask-become-pass
+
+Vysledek: nainstaluje k3s + elasticsearch na k3s
+na vystupu z ansible je curl kterym se da dostupnost overit
+
+URL je mozno ex-post znovu zobrazit pomoci:
+    ansible-playbook -i inventory/hosts.ini playbook/k3s-elasticsearch.yml --ask-become-pass -t es_url
+
+- v templatech v roli k3-elasticsearch je i zakomentovany deployment kibany, spolecne nefungovalo (pod ve stavu Pending), 
+nejspis nedostatek pameti (podle nazoru na forech), zkousel jsem 8G, vysledek stejny, ale vice ram na notebooku nemam
+
+K3s playbook vygeneruje na localhostu soubor ~/.kube/config pripadne config.new. Pokud je na localhostu kubectl,
+je mozno se na k3s pripojit switchnutim kontextu
+
+kubectl config use-context k3s-ansible
+
+Dale jsem ukol jiz nezpracoval, vzhledem k casu co jsem tomu venoval (priprava prostredi na mem ntb - hyper-v apod + 
+zasek s ingress na traefik v2 vs v3 + obecne nezkusenost s k3s, deploymenty a debuggingem problemu s k3s spojenych ) - cca 15h
+
+metricbeatu jsem sice chvili dal (manualne, osobne s nim nemam zkusenost, pouze s filebeatem), ale narazil jsem napr na to ze index se zalozil s >1 shardy coz pri 1 instanci ES vedlo
+k unassigned shardum  potazmo  yellow stavu clusteru - dale jsem se nevenoval viz vyse
+
+co bych delal dale: 
+    - output metricbeatu do ES + zapis do ansible
+    - zprovoznit kibanu pro pohodlnejsi praci
+    - ucesat ansible (assertions apod.)
+

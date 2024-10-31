@@ -1,0 +1,7 @@
+---
+- import_playbook: ../external/k3s-ansible/playbooks/site.yml
+
+- hosts: server
+  gather_facts: no
+  roles:
+    - k3s-elasticsearch
