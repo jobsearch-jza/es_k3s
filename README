@@ -3,7 +3,7 @@
 
 - do adresare external dat externi ansible repo
 
-cd external; git clone https://github.com/k3s-io/k3s-ansible.git; cd ..
+mkdir external; cd external; git clone https://github.com/k3s-io/k3s-ansible.git; cd ..
 
 - v inventory nastavit ip (hosta) serveru + ansible usera , pripadne prenastavit pozadovane v group_vars/all.yml
 
